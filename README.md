@@ -1,0 +1,2 @@
+# jotw
+JamOfTheWeek analyses
