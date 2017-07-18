@@ -1,6 +1,7 @@
 import pandas as pd
 
 
+
 class RGAIProcessor():
 
     def __init__(self, filepath):
@@ -13,63 +14,32 @@ class RGAIProcessor():
         self.df = self.df.reindex()  # on second thought, not sure this line is necessary
 
         # create dictionaries to store mismatches
-        self.race_data = {'black': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                    'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'white': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                    'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'hispanic': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                       'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'east asian': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                         'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'south asian': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                          'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'native american': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                              'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'middle eastern': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                             'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'not sure': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                       'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'other': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                    'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []},
-                          'nan': {'black': [], 'white': [], 'hispanic': [], 'east asian': [], 'south asian': [],
-                                    'native american': [], 'middle eastern': [], 'not sure': [], 'other': [], 'nan': []}}
-        self.gender_data = {'woman': {'woman': [], 'man': [], 'non-binary': [], 'not sure': [], 'nan': []},
-                            'man': {'woman': [], 'man': [], 'non-binary': [], 'not sure': [], 'nan': []},
-                            'non-binary': {'woman': [], 'man': [], 'non-binary': [], 'not sure': [], 'nan': []},
-                            'not sure': {'woman': [], 'man': [], 'non-binary': [], 'not sure': [], 'nan': []},
-                            'nan': {'woman': [], 'man': [], 'non-binary': [], 'not sure': [], 'nan': []}}
-        self.age_data = {'child': {'child': [], 'young adult': [], 'middle-aged': [], 'elder': [], 'nan': []},
-                         'young adult': {'child': [], 'young adult': [], 'middle-aged': [], 'elder': [], 'nan': []},
-                         'middle-aged': {'child': [], 'young adult': [], 'middle-aged': [], 'elder': [], 'nan': []},
-                         'elder': {'child': [], 'young adult': [], 'middle-aged': [], 'elder': [], 'nan': []},
-                         'nan': {'child': [], 'young adult': [], 'middle-aged': [], 'elder': [], 'nan': []}}
-        self.instrument_data = {'sax': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                        'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'trumpet': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                            'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'trombone': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                             'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'piano': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                          'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'voice': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                          'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'guitar': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                           'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'bass': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                         'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'drums': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                          'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'other': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                          'bass': [], 'drums': [], 'other': [], 'nan': []},
-                                'nan': {'sax': [], 'trumpet': [], 'trombone': [], 'piano': [], 'voice': [], 'guitar': [],
-                                        'bass': [], 'drums': [], 'other': [], 'nan': []}}
+        self.race_data = {}
+        race_list = ['black', 'white', 'hispanic', 'east asian', 'south asian', 'native american', 'middle eastern',
+                     'not sure', 'other', 'nan']
+        self.create_empty_table(self.race_data, race_list)
+        self.gender_data = {}
+        gender_list = ['man', 'woman', 'non binary', 'not sure', 'nan']
+        self.create_empty_table(self.gender_data, gender_list)
+        self.age_data = {}
+        age_list = ['child', 'young adult', 'middle aged', 'elder', 'nan']
+        self.create_empty_table(self.age_data, age_list)
+        self.instrument_data = {}
+        instrument_list = ['sax', 'trumpet', 'trombone', 'piano', 'voice', 'guitar', 'bass', 'drums', 'other', 'nan', 'multiple']
+        self.create_empty_table(self.instrument_data, instrument_list)
 
         # # creates a list of age pairs that are close enough together for disagreement not to matter
-        # self.age_pairs = [['child', 'young adult'], ['middle-aged', 'young adult'], ['elder', 'middle-aged']]
+        # self.age_pairs = [['child', 'young adult'], ['middle aged', 'young adult'], ['elder', 'middle aged']]
 
         # creates a list of URLs deleted for having invalid input from both people, therefore probably not being videos
         self.deleted_urls = []
         self.invalid_input = []  # urls with at least one misspelling or something--deal with these later
+
+    def create_empty_table(self, table_dict, type_list):  # this method could be static; should it be?
+        for row in type_list:
+            table_dict[row] = {}
+            for column in type_list:
+                table_dict[row][column] = []
 
     def compare_value(self, valueA, valueB, dictionary, value_options, url):
         if valueA in value_options and valueB in value_options:
@@ -89,16 +59,16 @@ class RGAIProcessor():
 
             # pull URL, race, gender, age, and instrument values from their respective cells
             rowA_url = str(rowA[1][0]).lower()
-            rowA_race = str(rowA[1][2]).lower()
-            rowA_gender = str(rowA[1][4]).lower()
-            rowA_age = str(rowA[1][6]).lower()
-            rowA_instrument = str(rowA[1][8]).lower()
+            rowA_race = str(rowA[1][2]).lower().replace('-', ' ')
+            rowA_gender = str(rowA[1][4]).lower().replace('-', ' ')
+            rowA_age = str(rowA[1][6]).lower().replace('-', ' ')
+            rowA_instrument = str(rowA[1][8]).lower().replace('-', ' ')
 
             rowB_url = str(rowB[1][0]).lower()
-            rowB_race = str(rowB[1][2]).lower()
-            rowB_gender = str(rowB[1][4]).lower()
-            rowB_age = str(rowB[1][6]).lower()
-            rowB_instrument = str(rowB[1][8]).lower()
+            rowB_race = str(rowB[1][2]).lower().replace('-', ' ')
+            rowB_gender = str(rowB[1][4]).lower().replace('-', ' ')
+            rowB_age = str(rowB[1][6]).lower().replace('-', ' ')
+            rowB_instrument = str(rowB[1][8]).lower().replace('-', ' ')
 
             # actually compare values
             if rowA_url != rowB_url:
@@ -109,7 +79,7 @@ class RGAIProcessor():
                 self.compare_value(rowA_age, rowB_age, self.age_data, self.age_data.keys(), rowA_url)
                 self.compare_value(rowA_instrument, rowB_instrument, self.instrument_data, self.instrument_data.keys(), rowA_url)
 
-    def fill_count_dict(self, input_dict, output_dict):
+    def fill_count_dict(self, input_dict, output_dict):  # this method could also be static; again, should it be?
         for row_key in input_dict.keys():
             output_dict[row_key] = {}
             for column_key in input_dict[row_key].keys():
