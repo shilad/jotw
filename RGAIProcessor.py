@@ -22,7 +22,7 @@ class RGAIProcessor():
         gender_list = ['man', 'woman', 'non binary', 'not sure', 'nan']
         self.create_empty_table(self.gender_data, gender_list)
         self.age_data = {}
-        age_list = ['child', 'young adult', 'middle aged', 'elder', 'nan']
+        age_list = ['child', 'young adult', 'middle aged', 'elder', 'nan', 'not sure']
         self.create_empty_table(self.age_data, age_list)
         self.instrument_data = {}
         instrument_list = ['sax', 'trumpet', 'trombone', 'piano', 'voice', 'guitar', 'bass', 'drums', 'other', 'nan', 'multiple']
@@ -45,6 +45,7 @@ class RGAIProcessor():
         if valueA in value_options and valueB in value_options:
             dictionary[valueA][valueB].append(url)
         else:
+            print valueA, valueB
             self.invalid_input.append(url)
         if valueA == "nan" and valueB == "nan":
             self.deleted_urls.append(url)
@@ -58,17 +59,17 @@ class RGAIProcessor():
             rowB = generator.next()
 
             # pull URL, race, gender, age, and instrument values from their respective cells
-            rowA_url = str(rowA[1][0]).lower()
-            rowA_race = str(rowA[1][2]).lower().replace('-', ' ')
-            rowA_gender = str(rowA[1][4]).lower().replace('-', ' ')
-            rowA_age = str(rowA[1][6]).lower().replace('-', ' ')
-            rowA_instrument = str(rowA[1][8]).lower().replace('-', ' ')
+            rowA_url = str(rowA[1][0])
+            rowA_race = str(rowA[1][2]).lower().replace('-', ' ').rstrip(' ')
+            rowA_gender = str(rowA[1][4]).lower().replace('-', ' ').rstrip(' ')
+            rowA_age = str(rowA[1][6]).lower().replace('-', ' ').rstrip(' ')
+            rowA_instrument = str(rowA[1][8]).lower().replace('-', ' ').rstrip(' ')
 
-            rowB_url = str(rowB[1][0]).lower()
-            rowB_race = str(rowB[1][2]).lower().replace('-', ' ')
-            rowB_gender = str(rowB[1][4]).lower().replace('-', ' ')
-            rowB_age = str(rowB[1][6]).lower().replace('-', ' ')
-            rowB_instrument = str(rowB[1][8]).lower().replace('-', ' ')
+            rowB_url = str(rowB[1][0]).lower().replace('-', ' ').rstrip(' ')
+            rowB_race = str(rowB[1][2]).lower().replace('-', ' ').rstrip(' ')
+            rowB_gender = str(rowB[1][4]).lower().replace('-', ' ').rstrip(' ')
+            rowB_age = str(rowB[1][6]).lower().replace('-', ' ').rstrip(' ')
+            rowB_instrument = str(rowB[1][8]).lower().replace('-', ' ').rstrip(' ')
 
             # actually compare values
             if rowA_url != rowB_url:
