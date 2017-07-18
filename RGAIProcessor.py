@@ -136,6 +136,15 @@ class RGAIProcessor():
 
         print len(self.deleted_urls), "URLs had one or more field in which both inputs were NaN."
         print "People entered non-options for", len(self.invalid_input), "URLs. They were:", self.invalid_input
+        print ""
+
+        print "Disagreements:"
+        for dictionary in [processor.race_data, processor.gender_data, processor.age_data, processor.instrument_data]:
+            for row_key in dictionary.keys():
+                for column_key in dictionary[row_key].keys():
+                    curr_list = dictionary[row_key][column_key]
+                    if row_key != column_key and len(curr_list) != 0:
+                        print row_key, "/", column_key, ":", curr_list
 
 processor = RGAIProcessor('//Users/sen/Desktop/RGAI.csv')
 processor.compare_rows()
