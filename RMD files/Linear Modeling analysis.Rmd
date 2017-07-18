@@ -1,0 +1,60 @@
+---
+title: "Linear Modeling analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library('data.table')
+library('lubridate')
+library('plyr')
+library('MASS')
+library('googlesheets')
+```
+
+```{r}
+statusesSheet <- gs_title("Statuses")
+statuses <- statusesSheet %>% gs_read(ws = 'Statuses') 
+statuses <- statuses[!is.na(statuses$status_published),]
+statuses <- statuses[order(as.POSIXlt(parse_date_time(statuses$status_published, orders="mdy HMS"))),]
+statuses$postcount <- data.frame(statuses$status_author,count=ave(statuses$status_author==statuses$status_author,
+    statuses$status_author, FUN=sum))$count
+statuses$prevposts <- data.frame(statuses$status_author,count=ave(statuses$status_author==statuses$status_author,
+    statuses$status_author, FUN=cumsum))$count - 1
+statuses$logprevposts <- log10(statuses$prevposts)
+statuses$prevreacts <- ave(statuses$num_reactions, statuses$status_author, FUN=cumsum) - statuses$num_reactions
+statuses$logprevreacts <- log10(statuses$prevreacts)
+statuses[statuses==-Inf] <- 0.1
+statuses$bin <- cut(statuses$postcount, breaks = c(0, 1, 5, 10, 181), right = TRUE)
+```
+
+```{r}
+merged =
+as.data.frame(fread('GenderData.csv',header=TRUE,encoding='UTF-8',fill=TRUE))[c(-1)]
+
+#Threshold tests
+merged$M <- as.numeric(merged$probability, na.rm = TRUE) * as.numeric(merged$count, na.rm = TRUE) + 3.5
+merged$F <- (1 - as.numeric(merged$probability, na.rm = TRUE)) * as.numeric(merged$count, na.rm = TRUE) + 3.5
+merged$percent <- as.numeric(merged$F, na.rm = TRUE) / (as.numeric(merged$M, na.rm = TRUE)
+    + as.numeric(merged$F, na.rm = TRUE))
+
+#Drops data points that don't have a percentage > 95% or < 5%
+merged <- subset(merged[!is.na(merged$gender),], percent >= .95 | percent <= 0.05)[c(1:4)]
+```
+
+```{r pressure, echo=FALSE}
+statuses$name = sub(" .*", "", statuses$status_author)
+statuses <- merge(x = statuses, y = merged, by = "name", all = TRUE)[c(-1)]
+statuses <- statuses[!is.na(statuses$status_id),]
+statuses <- statuses[order(as.POSIXlt(parse_date_time(statuses$status_published, orders="mdy HMS"))),]
+chistats <- statuses[!duplicated(statuses$status_author), ][c(3, 23:26)]
+tbl = table(chistats$bin, chistats$gender) 
+tbl
+tbl[,1] / sum(tbl[,1]) #women
+tbl[,2] / sum(tbl[,2]) #men
+chisq.test(tbl)
+```
+
+```{r pressure, echo=FALSE}
+model = lm(num_reactions ~ prevposts + logprevposts + prevreacts + logprevreacts, data = statuses)
+summary(model)
+```
