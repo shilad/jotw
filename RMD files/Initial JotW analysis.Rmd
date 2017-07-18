@@ -1,0 +1,346 @@
+---
+title: "JOTW data analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library('genderizeR')
+library('tidyr')
+library('data.table')
+library('ggplot2')
+library('scales')
+library('RColorBrewer')
+library('googlesheets')
+```
+
+# Activity Over Time
+
+First, we analyzed the number of reactions and posts over time.
+
+```{r}
+statusesSheet <- gs_title("Statuses")
+statuses <- statusesSheet %>% gs_read(ws = 'Statuses') 
+statuses <- statuses[!is.na(statuses$status_published),]
+statuses$yrmonth = paste(year(as.Date(statuses$status_published, format = "%m/%d/%Y")), 
+    strftime(as.Date(statuses$status_published, format = "%m/%d/%Y"), "%m"), sep = "-")
+ggplot(aes(x = statuses$yrmonth, y = statuses$num_reactions), data = statuses) + 
+  geom_bar(stat= "identity") + 
+  labs(title = "Reaction activity level over time", 
+      x = "Time (Year-Month)", 
+      y = "Number of Reactions")
+ggplot(aes(x = statuses$yrmonth), data = statuses) + 
+  geom_bar() + 
+  labs(title = "Post activity level over time", 
+    x = "Time (Year-Month)", 
+    y = "Number of Posts") 
+```
+# Activity Over Percentiles
+
+Next, we analyzed the average number of statuses made by the top .1, 1, 5 and 10 percent of users.
+
+```{r pressure, echo=FALSE}
+#aggpostdata is a data frame with two columns (full name and total number of posts)
+aggpostdata <-aggregate(statuses, by=list(statuses$status_author), FUN = length)
+aggpostdata <- aggpostdata[order(aggpostdata$status_id),]
+aggpostdata$name <- aggpostdata$Group.1
+aggpostdata$postcount = aggpostdata$status_id
+aggpostdata <- aggpostdata[c(20:21)]
+```
+
+
+```{r pressure, echo=FALSE}
+name = c("Top0.1", "Top01", "Top05", "Top10", "Top20", "everyone")
+mean = c(mean(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-.1/100),]$postcount), 
+    mean(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-1/100),]$postcount), 
+    mean(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-5/100),]$postcount), 
+    mean(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-10/100),]$postcount), 
+    mean(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-20/100),]$postcount), 
+    mean(aggpostdata$postcount))
+pop = c(nrow(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-.1/100),]), 
+    nrow(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-1/100),]), 
+    nrow(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-5/100),]), 
+    nrow(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-10/100),]), 
+    nrow(aggpostdata[aggpostdata$postcount > quantile(aggpostdata$postcount,prob=1-20/100),]), 
+    nrow(aggpostdata))
+df = data.frame(name, mean, pop)
+ggplot(df, aes(name, mean)) + 
+  geom_bar(stat = "identity") + 
+  labs(title = "Average Number of Posts by Percentile", 
+    x = "Group of Users", 
+    y = "Average Number of Posts") + 
+  geom_text(aes(label=pop), vjust= -.2)
+```
+# General Activity Analysis
+
+Then, we analyzed user activity through a 2D histogram. We wanted to know the distribution of people who post and those 
+who comment. We found that a lot of people in the JOTW facebook group write one or two comments and don't post.
+
+```{r pressure, echo=FALSE}
+commentspt1Sheet <- gs_title("Comments1")
+commentspt1 <- commentspt1Sheet %>% gs_read(ws = 'Comments')
+commentspt2Sheet <- gs_title("Comments2")
+commentspt2 <- commentspt2Sheet %>% gs_read(ws = 'Comments')
+
+comments <- rbind(commentspt1, commentspt2)
+rm(commentspt1)
+rm(commentspt2)
+
+#aggcommentdata is a data frame with two columns (full name and total number of comments)
+aggcommentdata <-aggregate(comments, by=list(comments$comment_author), FUN = length)
+aggcommentdata <- aggcommentdata[order(aggcommentdata$comment_id),]
+aggcommentdata$name <- aggcommentdata$Group.1
+aggcommentdata$commentcount = aggcommentdata$status_id
+aggcommentdata <- aggcommentdata[order(aggcommentdata$name),]
+aggcommentdata <- aggcommentdata[c(15:16)][-c(1:8), ]
+```
+
+```{r pressure, echo=FALSE}
+#aggdata is a data frame with three columns (full name, total number of comments and total number of posts)
+aggdata <- merge(x = aggcommentdata, y = aggpostdata, by = "name", all = TRUE)
+aggdata[is.na(aggdata)] <- 0.1 #NA values are changed to be 0.1
+aggdata <- aggdata[order(aggdata$postcount),] 
+rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
+r <- rf(32)
+ggplot(aggdata, aes(aggdata$postcount,aggdata$comment)) +
+  stat_bin2d(bins=25) + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  scale_fill_gradientn(colors=r, trans="log") + 
+  labs(title = "2D Histogram of User Activity", 
+    x = "Number of Posts (Logarithmically Scaled)", 
+    y = "Number of Comments (Logarithmically Scaled)")
+aggdata[aggdata==0.1] <- 0 #revert 0.1 values back to 0 values
+```
+
+```{r pressure, echo=FALSE}
+aggdata$activity <- ifelse(aggdata$commentcount>0&aggdata$postcount>0, "Both", ifelse(aggdata$commentcount>0, 
+    "Comment Only", "Post Only"))
+```
+
+#QQ Plots
+
+Then, we created QQ plots to see what percent of users account for what percent of posts, reacts and comments.
+
+```{r pressure, echo=FALSE}
+#add "num_reactions",	"num_comments",	"num_shares", "num_likes", "num_loves",	"num_wows",	"num_hahas", "num_sads", 
+#"num_angrys" columns to aggdata data frame
+aggdata$Group.1 = aggdata$name
+aggdata <- merge(x = aggregate(statuses[,c("num_reactions",	"num_comments",	"num_shares", "num_likes", "num_loves",
+	"num_wows",	"num_hahas", "num_sads", "num_angrys")], by=list(statuses$status_author), "sum", na.rm=TRUE),
+	y = aggdata, by = "Group.1", all = TRUE)
+```
+
+
+```{r pressure, echo=FALSE}
+aggdata <- aggdata[order(aggdata$postcount),] 
+x = subset(aggdata, postcount > 0)$postcount
+n = length(x)
+qqplot((1:n - 1)/(n - 1), cumsum(subset(aggdata, postcount > 0)$postcount)/
+    sum(subset(aggdata, postcount > 0)$postcount),  xlab = "% of Users", ylab = "% of Posts", 
+    main = "QQ Plot: % of Users vs % of Posts Made")
+```
+```{r pressure, echo=FALSE}
+aggdata <- aggdata[order(aggdata$commentcount),] 
+x = subset(aggdata, commentcount > 0)$commentcount
+n = length(x)
+qqplot((1:n - 1)/(n - 1), cumsum(subset(aggdata, commentcount > 0)$commentcount)/
+    sum(subset(aggdata, commentcount > 0)$commentcount), xlab = "% of Users", ylab = "% of Comments", 
+    main = "QQ Plot: % of Users vs % of Comments Made")
+```
+
+```{r pressure, echo=FALSE}
+aggdata <- aggdata[order(aggdata$num_reactions),] 
+x = aggdata[!is.na(aggdata$num_reactions),]$num_reactions
+n = length(x)
+qqplot((1:n - 1)/(n - 1),cumsum(aggdata[!is.na(aggdata$num_reactions),]$num_reactions)
+    /sum(aggdata[!is.na(aggdata$num_reactions),]$num_reactions), xlab = "% of Users", ylab = "% of Reacts", 
+    main = "QQ Plot: % of Users vs % of Reacts Received")
+```
+
+# Activity By Gender
+
+Afterward, we conducted basic distribution analysis for gender.
+
+```{r pressure, echo=FALSE}
+#add "comm_num_reactions", "comm_num_likes", "comm_num_loves", "comm_num_wows",	"comm_num_hahas", "comm_num_sads", 
+#"comm_num_angrys" columns to aggdata data frame
+aggdata = merge(x = setNames(aggregate(comments[,c("num_reactions",	"num_likes", "num_loves", "num_wows", "num_hahas", 
+    "num_sads", "num_angrys")], by=list(comments$comment_author), "sum", na.rm=TRUE), c("Group.1", "comm_num_reactions", 
+    "comm_num_likes", "comm_num_loves",	"comm_num_wows",	"comm_num_hahas", "comm_num_sads", "comm_num_angrys")), 
+    y = aggdata, by = "Group.1", all = TRUE)
+aggdata = aggdata[c(2:21)]
+```
+
+```{r pressure, echo=FALSE}
+#Set fullname column to full name and name column to first name
+aggdata$fullname = aggdata$name
+aggdata$name = sub(" .*", "", aggdata$name)
+```
+
+```{r pressure, echo=FALSE}
+#Merged is a data frame with four columns (first name, probability, count and gender)
+
+#givenNames = findGivenNames(unique(sub(" .*", "", aggdata$name)), apikey = "8851672c0e70afb02af3bc2c479a7236")
+#genderedData <- as.data.frame(genderize(unique(aggdata$name), genderDB=givenNames, blacklist=NULL))
+#genderedData$name <- genderedData$givenName
+#merged <- merge(x = givenNames, y = genderedData, by = "name", all = TRUE)
+
+#rm(genderedData)
+#rm(givenNames)
+
+#merged$gender <- merged$gender.y
+#merged$name <- merged$text
+#merged <- merged[, c("name", "probability", "count", "gender")]
+#merged <- subset(merged[!is.na(merged$name),])
+
+#We don't want to run genderize.io again so use the csv!!!
+merged = 
+as.data.frame(fread('GenderData.csv',header=TRUE,encoding='UTF-8',fill=TRUE))[c(-1)]
+```
+
+```{r pressure, echo=FALSE}
+#Threshold tests
+merged$M <- as.numeric(merged$probability, na.rm = TRUE) * as.numeric(merged$count, na.rm = TRUE) + 3.5
+merged$F <- (1 - as.numeric(merged$probability, na.rm = TRUE)) * as.numeric(merged$count, na.rm = TRUE) + 3.5
+merged$percent <- as.numeric(merged$F, na.rm = TRUE) / (as.numeric(merged$M, na.rm = TRUE) 
+    + as.numeric(merged$F, na.rm = TRUE))
+
+#Drops data points that don't have a percentage > 95% or < 5%
+merged <- subset(merged[!is.na(merged$gender),], percent >= .95 | percent <= 0.05)
+
+```
+
+```{r pressure, echo=FALSE}
+aggdata$gender <- NA
+aggdata$probability <- NA
+aggdata$count <- NA
+aggdata <- merge(x = aggdata, y = merged, by = "name", all = TRUE)
+aggdata$gender <- aggdata$gender.y
+aggdata$probability <- aggdata$probability.y
+aggdata$count <- aggdata$count.y
+aggdata <- aggdata[!is.na(aggdata$name),][c(-1, -22:-30)]
+```
+
+```{r pressure, echo=FALSE}
+barplot(table(aggdata$gender), main="Barplot of Gender", xlab="gender")
+```
+
+```{r pressure, echo=FALSE}
+#Overall activity
+barplot(table(aggdata$activity), main="Barplot of User Activity", xlab = "activity", ylab = "Frequency")
+ggplot(aggdata, aes(x = activity, ..count.., group=gender)) + 
+                geom_bar(aes(fill = gender, 
+                             y = c(..count..[..group..==1]/sum(..count..[..group..==1]),           
+                                   ..count..[..group..==2]/sum(..count..[..group..==2]), 
+                                   ..count..[..group..==3]/sum(..count..[..group..==3]))), 
+                         position = "dodge") + 
+  scale_y_continuous(labels = percent) + 
+  labs(title = "Histogram of User Activity by Gender", x = "Activity Level", y = "Percentage")
+```
+
+```{r pressure, echo=FALSE}
+#change to something more appropriate
+aggdata$postbin <- cut(aggdata$postcount, breaks = c(0, 1, 5, 100, 1134), include.lowest = TRUE, right = FALSE)
+aggdata$commentbin <- cut(aggdata$commentcount, breaks = c(0, 1, 5, 10, 50, 5168), include.lowest = TRUE, right = FALSE) 
+aggdata$reactbin <- cut(aggdata$num_reactions, breaks = c(0, 1, 5, 10, 50, 54224))
+```
+
+```{r pressure, echo=FALSE}
+#Count histogram
+ggplot(aggdata, aes(x = postbin, group=gender)) + 
+       geom_bar(aes(fill = gender), position = "dodge") +
+       theme_bw() +
+       labs(title = "Histogram of User Activity by Gender", 
+       x = "Number of Posts Made", 
+       y = "Count")
+```
+
+```{r pressure, echo=FALSE}
+#Binned percentage histogram
+ggplot(aggdata, aes(x = postbin, ..count.., group=gender)) + 
+       geom_bar(aes(fill = gender, 
+       y = c(..count..[..group..==1]/sum(..count..[..group..==1]),           
+                                   ..count..[..group..==2]/sum(..count..[..group..==2]), 
+                                   ..count..[..group..==3]/sum(..count..[..group..==3]))), 
+       position = "dodge") + 
+       scale_y_continuous(labels = percent) + 
+       theme_bw() +
+       labs(title = "Histogram of User Activity by Gender", 
+       x = "Number of Posts Made", 
+       y = "Percentage")
+```
+
+```{r pressure, echo=FALSE}
+#Count histogram
+ggplot(aggdata, aes(x = commentbin, ..count.., group=gender)) + 
+       geom_bar(aes(fill = gender), position = "dodge") +
+       theme_bw() +
+       labs(title = "Histogram of User Activity by Gender", 
+       x = "Number of Comments Made", 
+       y = "Count")
+```
+
+```{r pressure, echo=FALSE}
+#Binned percentage histogram
+ggplot(aggdata, aes(x = commentbin, ..count.., group=gender)) + 
+                geom_bar(aes(fill = gender, 
+                             y = c(..count..[..group..==1]/sum(..count..[..group..==1]),           
+                                   ..count..[..group..==2]/sum(..count..[..group..==2]), 
+                                   ..count..[..group..==3]/sum(..count..[..group..==3]))), 
+                         position = "dodge") + 
+        scale_y_continuous(labels = percent)  + 
+        theme_bw() +
+        labs(title = "Histogram of User Activity by Gender", 
+        x = "Number of Comments Made", 
+        y = "Percentage")
+```
+```{r pressure, echo=FALSE}
+#Count histogram
+ggplot(aggdata[!is.na(aggdata$reactbin),], aes(x = reactbin, ..count.., group=gender)) + 
+        geom_bar(aes(fill = gender), position = "dodge") +
+        theme_bw() +
+        labs(title = "Histogram of User Feedback by Gender", 
+        x = "Number of Reacts (TOTAL)", 
+        y = "Count")
+```
+
+```{r pressure, echo=FALSE}
+#Binned percentage histogram
+ggplot(aggdata[!is.na(aggdata$reactbin),], aes(x = reactbin, ..count.., group=gender)) + 
+                geom_bar(aes(fill = gender, 
+                             y = c(..count..[..group..==1]/sum(..count..[..group..==1]),           
+                                   ..count..[..group..==2]/sum(..count..[..group..==2]), 
+                                   ..count..[..group..==3]/sum(..count..[..group..==3]))), 
+                         position = "dodge") + 
+        scale_y_continuous(labels = percent) + 
+        theme_bw() + 
+        labs(title = "Histogram of User Feedback by Gender", 
+        x = "Number of Reacts (TOTAL)", 
+        y = "Percentage")
+```
+
+```{r pressure, echo=FALSE}
+aggdata$reactbin <- cut(aggdata$num_reactions / aggdata$postcount, breaks = c(0, 1, 5, 10, 30, 3800))
+#Count histogram
+ggplot(aggdata[!is.na(aggdata$reactbin),], aes(x = reactbin, ..count.., group=gender)) + 
+        geom_bar(aes(fill = gender), position = "dodge") +
+        theme_bw() +
+        labs(title = "Histogram of User Feedback by Gender", 
+        x = "Number of Reacts (PER POST)", 
+        y = "Count")
+```
+
+```{r pressure, echo=FALSE}
+#Binned percentage histogram
+ggplot(aggdata[!is.na(aggdata$reactbin),], aes(x = reactbin, ..count.., group=gender)) + 
+                geom_bar(aes(fill = gender, 
+                             y = c(..count..[..group..==1]/sum(..count..[..group..==1]),           
+                                   ..count..[..group..==2]/sum(..count..[..group..==2]), 
+                                   ..count..[..group..==3]/sum(..count..[..group..==3]))), 
+                         position = "dodge") + 
+        scale_y_continuous(labels = percent) + 
+        theme_bw() + 
+        labs(title = "Histogram of User Feedback by Gender", 
+        x = "Number of Reacts (PER POST)", 
+        y = "Percentage")
+```
