@@ -34,6 +34,8 @@ class RGAIProcessor():
         # creates a list of URLs deleted for having invalid input from both people, therefore probably not being videos
         self.deleted_urls = []
         self.invalid_input = []  # urls with at least one misspelling or something--deal with these later
+        self.agreements = 0
+        self.disagreements = 0
 
     def create_empty_table(self, table_dict, type_list):  # this method could be static; should it be?
         for row in type_list:
@@ -44,8 +46,11 @@ class RGAIProcessor():
     def compare_value(self, valueA, valueB, dictionary, value_options, url):
         if valueA in value_options and valueB in value_options:
             dictionary[valueA][valueB].append(url)
+            if valueA == valueB:
+                self.agreements += 1
+            else:
+                self.disagreements += 1
         else:
-            print valueA, valueB
             self.invalid_input.append(url)
         if valueA == "nan" and valueB == "nan":
             self.deleted_urls.append(url)
@@ -107,6 +112,7 @@ class RGAIProcessor():
 
         print len(self.deleted_urls), "URLs had one or more field in which both inputs were NaN."
         print "People entered non-options for", len(self.invalid_input), "URLs. They were:", self.invalid_input
+        print "There were", self.agreements, "agreements and", self.disagreements, "disagreements."
         print ""
 
         print "Disagreements:"
