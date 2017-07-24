@@ -1,0 +1,76 @@
+---
+title: "Andre's Analysis"
+output: html_document
+---
+```{r}
+require(reshape2)
+
+```
+
+##Data Cleaning and Merging
+
+```{r}
+first_name= colsplit(Statuses$status_author, pattern = ' ', names=c('name1','name2'))
+Statuses$first_name = first_name[,1]
+statuses_gender_df= merge(x=Statuses,y=GenderData,by.x='first_name',by.y='names')
+statuses_gender_df <- statuses_gender_df[!is.na(Statuses$status_published),]
+statuses_gender_df$X18 <- NULL
+statuses_gender_df$link_name <- NULL
+statuses_gender_df$status_link <- NULL
+statuses_gender_df$permalink_url <- NULL
+statuses_gender_df$X1 <- NULL
+```
+
+Remove whose first name could not be found GenderData
+```{r}
+statuses_gender_df=statuses_gender_df[!is.na(statuses_gender_df$status_author),]
+```
+
+Date edits
+```{r}
+statuses_gender_df=statuses_gender_df[order(as.POSIXlt(parse_date_time(statuses_gender_df$status_published, orders="mdy HMS"))),]
+statuses_gender_df$postcount <- data.frame(statuses_gender_df$status_author,count=ave(statuses_gender_df$status_author==statuses_gender_df$status_author,
+    statuses_gender_df$status_author, FUN=sum))$count
+statuses_gender_df$prevposts <- data.frame(statuses_gender_df$status_author,count=ave(statuses_gender_df$status_author==statuses_gender_df$status_author,
+    statuses_gender_df$status_author, FUN=cumsum))$count - 1
+```
+
+Sort by first name
+```{r}
+statuses_gender_df=statuses_gender_df[with(statuses_gender_df, order(first_name)), ]
+
+```
+
+##Models
+
+Gender is significant
+```{r}
+model.gender=lm(num_reactions~gender,data=statuses_gender_df)
+summary(model.gender)
+```
+
+Some status types are not significant
+```{r}
+model.gender_statustype=lm(num_reactions~gender+status_type,data=statuses_gender_df)
+summary(model.gender_statustype)
+```
+
+```{r}
+model.gender_prevpost=lm(num_reactions~gender+prevposts,data=statuses_gender_df)
+summary(model.gender_prevpost)
+```
+
+```{r}
+model.gender_prevpost_prob=lm(num_reactions~prevposts+ gender+probability,data=statuses_gender_df)
+summary(model.gender_prevpost_prob)
+```
+
+```{r}
+statuses_gender_df$type = as.numeric(statuses_gender_df$status_type == 'video')
+model.gender_prevpost_type=lm(num_reactions~prevposts+ gender+type,data=statuses_gender_df)
+summary(model.gender_prevpost_type)
+```
+```{r}
+
+
+```
