@@ -8,7 +8,6 @@ import csv
 import time
 from collections import defaultdict
 
-
 group_id = "558429457587216"
 
 access_token = "1420698734686960|35deb28b79cd51e64ab729c0ba2c4566"
