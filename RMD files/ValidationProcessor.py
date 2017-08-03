@@ -194,6 +194,7 @@ class ValidationProcessor():
 
     # This method doesn't find a rate of agreement among the 3 Turkers; it just creates a consensus dataframe for all of
     # them, to be evaluated against the validation dataset.
+    # TODO: Make this method actually work lol
     def create_three_turker_consensus(self):
         consensus_df = pd.DataFrame(columns=['URL', 'Race', 'Gender', 'Age', 'Instrument', 'Disqualified'])
         for i in range(0, 1500, 3):
